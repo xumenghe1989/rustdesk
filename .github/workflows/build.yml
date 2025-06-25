@@ -1,0 +1,78 @@
+name: Build RustDesk Custom Client
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target OS'
+        required: true
+        default: 'windows'
+        type: choice
+        options:
+          - windows
+          - macos
+          - linux
+
+env:
+  RENDEZVOUS_SERVER: ${{ secrets.RENDEZVOUS_SERVER }}
+  RELAY_SERVER: ${{ secrets.RELAY_SERVER }}
+  RS_PUB_KEY: ${{ secrets.RS_PUB_KEY }}
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+
+    if: github.event.inputs.target == matrix.target
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm install -g pnpm
+          pnpm install
+        shell: bash
+
+      - name: Install Tauri CLI
+        run: pnpm dlx @tauri-apps/cli install
+        shell: bash
+
+      - name: Set Environment Variables
+        run: |
+          echo "RELAY_SERVER=$RELAY_SERVER"
+          echo "RENDEZVOUS_SERVER=$RENDEZVOUS_SERVER"
+          echo "RS_PUB_KEY=$RS_PUB_KEY"
+        shell: bash
+
+      - name: Build Tauri App
+        run: pnpm tauri build
+        shell: bash
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: rustdesk-${{ matrix.target }}
+          path: |
+            src-tauri/target/release/bundle
