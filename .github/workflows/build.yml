@@ -1,50 +1,29 @@
-name: Build RustDesk Native Client
+name: Build RustDesk Windows Client
 
 on:
   workflow_dispatch:
-    inputs:
-      os:
-        description: 'Target OS'
-        required: true
-        default: 'windows'
-        type: choice
-        options:
-          - windows
-          - linux
-          - macos
 
 jobs:
-  build:
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - os: windows
-            runner: windows-latest
-          - os: linux
-            runner: ubuntu-latest
-          - os: macos
-            runner: macos-latest
-
-    if: github.event.inputs.os == matrix.os
+  build-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
 
-      - name: Set up Rust
+      - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
       - name: Build RustDesk (Release)
-        run: cargo build --release
+        run: cargo build --release --bin rustdesk
 
-      - name: Upload Artifacts
+      - name: Upload RustDesk EXE
         uses: actions/upload-artifact@v4
         with:
-          name: rustdesk-${{ matrix.os }}
+          name: rustdesk-windows
           path: |
-            target/release/rustdesk*
+            target/release/rustdesk.exe
           retention-days: 7
