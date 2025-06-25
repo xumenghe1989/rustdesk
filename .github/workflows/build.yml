@@ -1,43 +1,61 @@
-name: Build RustDesk Windows Client
+name: Build RustDesk Windows Client with Custom Server
 
 on:
   workflow_dispatch:
+    inputs:
+      server:       # rendezvous server
+        description: 'Server domain or IP'
+        required: true
+      key:
+        description: 'Key for server'
+        required: true
 
 jobs:
-  build-windows:
+  build:
+    name: Build Windows Client
     runs-on: windows-latest
 
+    env:
+      VCPKG_ROOT: C:\vcpkg
+
     steps:
-      - name: Checkout source with submodules
+      - name: Checkout Source with Submodules
         uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Set up Rust toolchain
+      - name: Set up Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
-      - name: Install vcpkg and dependencies
+      - name: Install vcpkg
         shell: powershell
         run: |
-          if (!(Test-Path "C:\vcpkg")) {
-            git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-            cd C:\vcpkg
+          if (!(Test-Path "$env:VCPKG_ROOT")) {
+            git clone https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+            cd $env:VCPKG_ROOT
             .\bootstrap-vcpkg.bat
           }
-          cd D:\a\rustdesk\rustdesk
-          C:\vcpkg\vcpkg.exe install
-        env:
-          VCPKG_ROOT: C:\vcpkg
+          cd $env:GITHUB_WORKSPACE
+          $env:Path += ";$env:VCPKG_ROOT"
+          $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
+          vcpkg install
 
-      - name: Build RustDesk (Release)
+      - name: Inject Server Info
+        run: |
+          $settingsPath = "${{ github.workspace }}\src-tauri\settings.toml"
+          (Get-Content $settingsPath) -replace 'rendezvous_server\s*=\s*".*?"', 'rendezvous_server = "${{ github.event.inputs.server }}"' | \
+            Set-Content $settingsPath
+          (Get-Content $settingsPath) -replace 'key\s*=\s*".*?"', 'key = "${{ github.event.inputs.key }}"' | \
+            Set-Content $settingsPath
+
+      - name: Build RustDesk Executable
         run: cargo build --release --bin rustdesk
-        working-directory: D:\a\rustdesk\rustdesk
 
-      - name: Upload RustDesk EXE
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rustdesk-windows
-          path: D:\a\rustdesk\rustdesk\target\release\rustdesk.exe
+          name: rustdesk-windows-custom
+          path: target/release/rustdesk.exe
