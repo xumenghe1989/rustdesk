@@ -1,17 +1,19 @@
-name: Build RustDesk Windows Client
-
-on:
-  workflow_dispatch:
-
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout source with submodules
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
+
+      - name: Install vcpkg
+        shell: powershell
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat
+          # 安装 opus 库，magnum-opus 依赖它
+          C:\vcpkg\vcpkg.exe install opus:x64-windows
+          echo "VCPKG_ROOT=C:\\vcpkg" >> $env:GITHUB_ENV
 
       - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -26,6 +28,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rustdesk-windows
-          path: |
-            target/release/rustdesk.exe
+          path: target/release/rustdesk.exe
           retention-days: 7
