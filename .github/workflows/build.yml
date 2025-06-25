@@ -45,11 +45,12 @@ jobs:
       - name: Build Tauri App (Windows)
         run: pnpm tauri build
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: rustdesk-windows
           path: |
             src-tauri/target/release/bundle
+          retention-days: 7
 
   build-linux:
     if: ${{ github.event.inputs.target == 'linux' }}
@@ -79,11 +80,12 @@ jobs:
       - name: Build Tauri App (Linux)
         run: pnpm tauri build
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: rustdesk-linux
           path: |
             src-tauri/target/release/bundle
+          retention-days: 7
 
   build-macos:
     if: ${{ github.event.inputs.target == 'macos' }}
@@ -112,8 +114,9 @@ jobs:
       - name: Build Tauri App (macOS)
         run: pnpm tauri build
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: rustdesk-macos
           path: |
             src-tauri/target/release/bundle
+          retention-days: 7
