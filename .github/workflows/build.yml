@@ -8,8 +8,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout source with submodules
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
       - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
