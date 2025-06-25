@@ -10,8 +10,8 @@ on:
         type: choice
         options:
           - windows
-          - macos
           - linux
+          - macos
 
 env:
   RENDEZVOUS_SERVER: ${{ secrets.RENDEZVOUS_SERVER }}
@@ -19,33 +19,18 @@ env:
   RS_PUB_KEY: ${{ secrets.RS_PUB_KEY }}
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            target: linux
-          - os: windows-latest
-            target: windows
-          - os: macos-latest
-            target: macos
-
-    if: github.event.inputs.target == matrix.target
-
+  build-windows:
+    if: ${{ github.event.inputs.target == 'windows' }}
+    runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '18'
 
@@ -53,26 +38,82 @@ jobs:
         run: |
           npm install -g pnpm
           pnpm install
-        shell: bash
 
       - name: Install Tauri CLI
         run: pnpm dlx @tauri-apps/cli install
-        shell: bash
 
-      - name: Set Environment Variables
-        run: |
-          echo "RELAY_SERVER=$RELAY_SERVER"
-          echo "RENDEZVOUS_SERVER=$RENDEZVOUS_SERVER"
-          echo "RS_PUB_KEY=$RS_PUB_KEY"
-        shell: bash
-
-      - name: Build Tauri App
+      - name: Build Tauri App (Windows)
         run: pnpm tauri build
-        shell: bash
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v3
         with:
-          name: rustdesk-${{ matrix.target }}
+          name: rustdesk-windows
+          path: |
+            src-tauri/target/release/bundle
+
+  build-linux:
+    if: ${{ github.event.inputs.target == 'linux' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          npm install -g pnpm
+          pnpm install
+
+      - name: Install Tauri CLI
+        run: pnpm dlx @tauri-apps/cli install
+
+      - name: Build Tauri App (Linux)
+        run: pnpm tauri build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: rustdesk-linux
+          path: |
+            src-tauri/target/release/bundle
+
+  build-macos:
+    if: ${{ github.event.inputs.target == 'macos' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          brew install webkit2gtk gtk+3 cairo gobject-introspection
+          npm install -g pnpm
+          pnpm install
+
+      - name: Install Tauri CLI
+        run: pnpm dlx @tauri-apps/cli install
+
+      - name: Build Tauri App (macOS)
+        run: pnpm tauri build
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: rustdesk-macos
           path: |
             src-tauri/target/release/bundle
