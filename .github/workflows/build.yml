@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       server:       # rendezvous server
-        description: 'Server domain or IP'
+        description: '222.128.104.151:21117'
         required: true
       key:
-        description: 'Key for server'
+        description: 'JSZCB@2025'
         required: true
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Install vcpkg
+      - name: Install vcpkg dependencies
         shell: powershell
         run: |
           if (!(Test-Path "$env:VCPKG_ROOT")) {
@@ -40,16 +40,15 @@ jobs:
           }
           cd $env:GITHUB_WORKSPACE
           $env:Path += ";$env:VCPKG_ROOT"
-          $env:VCPKG_DEFAULT_TRIPLET="x64-windows"
+          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
           vcpkg install
 
-      - name: Inject Server Info
+      - name: Inject Server Info into Source
+        shell: powershell
         run: |
-          $settingsPath = "${{ github.workspace }}\src-tauri\settings.toml"
-          (Get-Content $settingsPath) -replace 'rendezvous_server\s*=\s*".*?"', 'rendezvous_server = "${{ github.event.inputs.server }}"' | \
-            Set-Content $settingsPath
-          (Get-Content $settingsPath) -replace 'key\s*=\s*".*?"', 'key = "${{ github.event.inputs.key }}"' | \
-            Set-Content $settingsPath
+          $file = "$env:GITHUB_WORKSPACE\libs\hbb_common\src\config.rs"
+          (Get-Content $file) -replace '"rendezvous.rustdesk.com:\d+"', '"${{ github.event.inputs.server }}"' | Set-Content $file
+          (Get-Content $file) -replace '"rustdesk-key"', '"${{ github.event.inputs.key }}"' | Set-Content $file
 
       - name: Build RustDesk Executable
         run: cargo build --release --bin rustdesk
