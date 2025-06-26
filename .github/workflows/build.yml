@@ -3,16 +3,15 @@ name: Build RustDesk Windows Client with Custom Server
 on:
   workflow_dispatch:
     inputs:
-      server:       # rendezvous server IP or domain
-        description: 'RustDesk Rendezvous Server (e.g. 1.2.3.4)'
+      server:
+        description: 'Server domain or IP'
         required: true
       key:
-        description: 'Server key (e.g. XXX@YYYY)'
+        description: 'Key for server'
         required: true
 
 jobs:
   build:
-    name: Build for Windows
     runs-on: windows-latest
 
     env:
@@ -20,47 +19,41 @@ jobs:
       VCPKG_DEFAULT_TRIPLET: x64-windows-static
 
     steps:
-      - name: 🧾 Checkout Source with Submodules
+      - name: Checkout Source Code
         uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: 🦀 Install Rust Toolchain
+      - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
-      - name: 📦 Install vcpkg and dependencies
+      - name: Install vcpkg and Dependencies
         shell: powershell
         run: |
-          if (!(Test-Path "$env:VCPKG_ROOT")) {
-            git clone https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          if (!(Test-Path "$env:VCPKG_ROOT\vcpkg.exe")) {
+            git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
             cd $env:VCPKG_ROOT
             .\bootstrap-vcpkg.bat
           }
           cd $env:GITHUB_WORKSPACE
-          $env:Path += ";$env:VCPKG_ROOT"
-          & "$env:VCPKG_ROOT\vcpkg.exe" install --triplet x64-windows-static
+          Copy-Item .\vcpkg-configuration.json .\vcpkg.json
+          & "$env:VCPKG_ROOT\vcpkg.exe" install
 
-      - name: 🔧 Inject Rendezvous Server and Key
+      - name: Inject Custom Server
         shell: powershell
         run: |
-          $settingsPath = Join-Path $env:GITHUB_WORKSPACE "src-tauri\settings.toml"
-          if (!(Test-Path $settingsPath)) {
-            Write-Error "❌ 找不到 settings.toml: $settingsPath"
-            exit 1
-          }
-          (Get-Content $settingsPath) -replace 'rendezvous_server\s*=\s*".*?"', 'rendezvous_server = "${{ github.event.inputs.server }}"' |
-            Set-Content $settingsPath
-          (Get-Content $settingsPath) -replace 'key\s*=\s*".*?"', 'key = "${{ github.event.inputs.key }}"' |
-            Set-Content $settingsPath
+          $settingsPath = "${{ github.workspace }}\src-tauri\settings.toml"
+          (Get-Content $settingsPath) -replace 'rendezvous_server\s*=\s*".*?"', 'rendezvous_server = "${{ github.event.inputs.server }}"' | Set-Content $settingsPath
+          (Get-Content $settingsPath) -replace 'key\s*=\s*".*?"', 'key = "${{ github.event.inputs.key }}"' | Set-Content $settingsPath
 
-      - name: 🛠️ Build rustdesk.exe
+      - name: Build Windows Client
         run: cargo build --release --bin rustdesk
 
-      - name: 📤 Upload Executable
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rustdesk-windows-custom
+          name: rustdesk-windows
           path: target/release/rustdesk.exe
