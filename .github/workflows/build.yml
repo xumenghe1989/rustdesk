@@ -41,7 +41,7 @@ jobs:
           }
           cd $env:GITHUB_WORKSPACE
           $env:Path += ";$env:VCPKG_ROOT"
-          vcpkg install opus:x64-windows-static openssl:x64-windows-static libvpx:x64-windows-static
+          & "$env:VCPKG_ROOT\vcpkg.exe" install --triplet x64-windows-static
 
       - name: 🔧 Inject Rendezvous Server and Key
         shell: powershell
