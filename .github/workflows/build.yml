@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       server:       # rendezvous server
-        description: '222.128.104.151:21117'
+        description: 'Server domain or IP (e.g., 1.2.3.4:21117)'
         required: true
       key:
-        description: 'JSZCB@2025'
+        description: 'Key for server (e.g., JSZCB@2025)'
         required: true
 
 jobs:
