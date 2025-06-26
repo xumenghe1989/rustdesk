@@ -4,14 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       server:
-        description: 'Server domain or IP'
+        description: 'Server IP or Domain'
         required: true
       key:
-        description: 'Key for server'
+        description: 'Server Key'
         required: true
 
 jobs:
   build:
+    name: Build Windows Client
     runs-on: windows-latest
 
     env:
@@ -19,7 +20,7 @@ jobs:
       VCPKG_DEFAULT_TRIPLET: x64-windows-static
 
     steps:
-      - name: Checkout Source Code
+      - name: Checkout source with submodules
         uses: actions/checkout@v3
         with:
           submodules: recursive
@@ -30,7 +31,7 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Install vcpkg and Dependencies
+      - name: Install vcpkg and dependencies
         shell: powershell
         run: |
           if (!(Test-Path "$env:VCPKG_ROOT\vcpkg.exe")) {
@@ -38,22 +39,25 @@ jobs:
             cd $env:VCPKG_ROOT
             .\bootstrap-vcpkg.bat
           }
-          cd $env:GITHUB_WORKSPACE
-          Copy-Item .\vcpkg-configuration.json .\vcpkg.json
-          & "$env:VCPKG_ROOT\vcpkg.exe" install
+          $env:Path += ";$env:VCPKG_ROOT"
+          & "$env:VCPKG_ROOT\vcpkg.exe" install opus openssl libvpx --triplet $env:VCPKG_DEFAULT_TRIPLET
 
-      - name: Inject Custom Server
+      - name: Inject Server Info
         shell: powershell
         run: |
           $settingsPath = "${{ github.workspace }}\src-tauri\settings.toml"
+          if (!(Test-Path $settingsPath)) {
+            Write-Host "❌ settings.toml 不存在！检查路径是否正确。"
+            exit 1
+          }
           (Get-Content $settingsPath) -replace 'rendezvous_server\s*=\s*".*?"', 'rendezvous_server = "${{ github.event.inputs.server }}"' | Set-Content $settingsPath
           (Get-Content $settingsPath) -replace 'key\s*=\s*".*?"', 'key = "${{ github.event.inputs.key }}"' | Set-Content $settingsPath
 
-      - name: Build Windows Client
+      - name: Build RustDesk Executable
         run: cargo build --release --bin rustdesk
 
-      - name: Upload Artifact
+      - name: Upload Executable
         uses: actions/upload-artifact@v4
         with:
-          name: rustdesk-windows
+          name: rustdesk-windows-custom
           path: target/release/rustdesk.exe
